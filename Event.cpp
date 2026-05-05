@@ -5,68 +5,57 @@
 using namespace std;
 
 Event::Event(const QString& title, const QDateTime& dateTime, EventCategory category)
-  : m_title(title), m_dateTime(dateTime), m_category(category), m_isValid(dateTime.isValid()) {}
+    : m_title(title), m_dateTime(dateTime), m_category(category), m_isValid(dateTime.isValid()) {}
 
-QString Event::title() const {
-return m_title;
-}
-QDateTime Event::dateTime() const {
-return m_dateTime;
-}
-EventCategory Event::category() const {
-return m_category;
-}
-bool Event::isValid() const {
-return m_isValid;
-}
+QString Event::title() const { return m_title; }
+QDateTime Event::dateTime() const { return m_dateTime; }
+EventCategory Event::category() const { return m_category; }
+bool Event::isValid() const { return m_isValid; }
 
 int Event::priority() const {
-  const int priority_high = 1;
-  const int priority_medium = 2;
-  const int priority_low = 3;
-
-  switch (m_category) {
-	case EventCategory::University: return priority_high;
-	case EventCategory::Personal: return priority_medium;
-	case EventCategory::Other: return priority_low;
-  }
-  return priority_low;
+    switch (m_category) {
+        case EventCategory::University: return 1;
+        case EventCategory::Personal:   return 2;
+        case EventCategory::Other:      return 3;
+    }
+    return 3;
 }
 
 QString Event::categoryString() const {
-  switch (m_category) {
-	case EventCategory::University: return "University";
-	case EventCategory::Personal: return "Personal";
-	case EventCategory::Other: return "Other";
-  }
-  return "Other";
+    switch (m_category) {
+        case EventCategory::University: return "University";
+        case EventCategory::Personal:   return "Personal";
+        case EventCategory::Other:      return "Other";
+    }
+    return "Other";
 }
 
+// Scans a plain-text string for a date in DD/MM/YYYY HH:MM format.
+// Used when parsing email bodies received from Gmail sync.
 Event Event::parseEventFromString(const QString& inputText, EventCategory category) {
-  string text = inputText.toStdString();
-  regex dateRegex(R"(\b(\d{2})/(\d{2})/(\d{4})\s+(\d{1,2}):(\d{2})\b)");
-  smatch match;
+    std::string text = inputText.toStdString();
+    std::regex dateRegex(R"(\b(\d{2})/(\d{2})/(\d{4})\s+(\d{1,2}):(\d{2})\b)");
+    std::smatch match;
 
-  if (regex_search(text, match, dateRegex)) {
-	QString dateStr = QString::fromStdString(match.str(0));
-	QDateTime dt = QDateTime::fromString(dateStr, "dd/MM/yyyy HH:mm");
+    if (std::regex_search(text, match, dateRegex)) {
+        QString dateStr = QString::fromStdString(match.str(0));
+        QDateTime dt = QDateTime::fromString(dateStr, "dd/MM/yyyy HH:mm");
 
-	QString extractedTitle = inputText;
-	extractedTitle = extractedTitle.remove(dateStr).trimmed();
+        // Whatever text remains after removing the date becomes the event title
+        QString extractedTitle = inputText;
+        extractedTitle = extractedTitle.remove(dateStr).trimmed();
+        if (extractedTitle.isEmpty())
+            extractedTitle = "Untitled Event";
 
-	if (extractedTitle.isEmpty()) {
-extractedTitle = "Untitled Event";
-	}
+        return Event(extractedTitle, dt, category);
+    }
 
-	return Event(extractedTitle, dt, category);
-  }
-
-  return Event(inputText, QDateTime(), category);
+    return Event(inputText, QDateTime(), category);
 }
 
+// Sorts by priority first (lower number = higher priority), then by date
 bool operator<(const Event& e1, const Event& e2) {
-  if (e1.priority() != e2.priority()) {
-	return e1.priority() < e2.priority();
-  }
-  return e1.dateTime() < e2.dateTime();
+    if (e1.priority() != e2.priority())
+        return e1.priority() < e2.priority();
+    return e1.dateTime() < e2.dateTime();
 }
